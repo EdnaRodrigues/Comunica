@@ -1,0 +1,6 @@
+wokwi.toml
+
+[wokwi]
+version = 1
+firmware = 'build/Comunica.uf2'
+elf = 'build/Comunica.elf'
