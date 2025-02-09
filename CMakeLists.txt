@@ -46,7 +46,7 @@ pico_generate_pio_header(Comunica ${CMAKE_CURRENT_LIST_DIR}/matriz.pio)
 target_sources(Comunica PRIVATE Comunica.c)
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(Comunica 0)
+pico_enable_stdio_uart(Comunica 1)
 pico_enable_stdio_usb(Comunica 1)
 
 # Add the standard library to the build
