@@ -1,5 +1,3 @@
-wokwi.toml
-
 [wokwi]
 version = 1
 firmware = 'build/Comunica.uf2'

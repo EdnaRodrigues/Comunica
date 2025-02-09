@@ -1,10 +1,9 @@
-Comunica.c
-
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/pio.h"
 #include "hardware/i2c.h"
 #include "pico/bootrom.h"
+#include "include/ssd1306.h"
 
 //Arquivo .pio
 #include "matriz.pio.h"
@@ -25,7 +24,7 @@ Comunica.c
 //Variáveis Globais para permitir a função de saída da matriz de LEDs
 PIO pio;
 uint sm;
-double r = 0, b = 0, g = 1;
+double r = 0.5, b = 0.5, g = 0.5;
 static volatile uint32_t last_time = 0; // Armazena o tempo do último evento (em microssegundos)
 
 double numeros[10][25] = {
@@ -119,21 +118,30 @@ void desenho (int n) {
     }
 }
 
+// Definições da comunicação I2C
+#define I2C_PORT i2c1
+#define I2C_SDA 14
+#define I2C_SCL 15
+#define address 0x3C
+ssd1306_t ssd; // Inicializa a estrutura do display para todas as funções
+
 //Rotinas de Interrupção
 void gpio_irq_handler(uint gpio, uint32_t events) {
     uint32_t current_time = to_us_since_boot(get_absolute_time());
     if (current_time - last_time > 200000) { //Apenas ativa as funções quando o intervalo entre acionamentos é superior a 0.2 segundos
         last_time = current_time; //Atualiza o tempo do último evento
-
+        
         if (gpio == button_A) {
             gpio_put(green_pin, !gpio_get(green_pin));
-            // Registrar o estado do LED no display SSD1306
-            printf("LED Verde %s\n", gpio_get(green_pin)? "ligado." : "desligado."); // Imprime na saída serial o estado atual do LED Verde ("ligado" ou "desligado").
+            ssd1306_draw_string(&ssd, gpio_get(green_pin)?"LED Verde Ligado!   ":"LED Verde Desligado!", 4, 7);
+            ssd1306_send_data(&ssd); // Registra o estado do LED no display SSD1306
+            printf("Botão A pressionado. LED Verde foi %s\n", gpio_get(green_pin)? "ligado." : "desligado."); // Imprime na saída serial o estado atual do LED Verde ("ligado" ou "desligado")
             // Texto descritivo da operação enviado ao Serial Monitor
         } else if (gpio == button_B) {
             gpio_put(blue_pin, !gpio_get(blue_pin));
-            // Registrar o estado do LED no display SSD1306
-            printf("LED Azul %s\n", gpio_get(blue_pin)? "ligado." : "desligado."); // Imprime na saída serial o estado atual do LED Verde ("ligado" ou "desligado").
+            ssd1306_draw_string(&ssd, gpio_get(blue_pin)?"LED Azul Ligado!   ":"LED Azul Desligado!", 4, 21);
+            ssd1306_send_data(&ssd); // Registra o estado do LED no display SSD1306
+            printf("Botão B pressionado. LED Azul foi %s\n", gpio_get(blue_pin)? "ligado." : "desligado."); // Imprime na saída serial o estado atual do LED Verde ("ligado" ou "desligado").
             // Texto descritivo da operação enviado ao Serial Monitor
         } else if (gpio == button_Joy) {
             reset_usb_boot(0,0); //Habilita o modo de gravação do microcontrolador
@@ -143,12 +151,6 @@ void gpio_irq_handler(uint gpio, uint32_t events) {
     }
 }
 
-// I2C defines
-// This example will use I2C0 on GPIO8 (SDA) and GPIO9 (SCL) running at 400KHz.
-// Pins can be changed, see the GPIO function select table in the datasheet for information on GPIO assignments
-#define I2C_PORT i2c0
-#define I2C_SDA 14
-#define I2C_SCL 15
 
 
 int main() {
@@ -189,23 +191,40 @@ int main() {
     gpio_set_irq_enabled_with_callback(button_B, GPIO_IRQ_EDGE_FALL, true, & gpio_irq_handler);
     gpio_set_irq_enabled_with_callback(button_Joy, GPIO_IRQ_EDGE_FALL, true, & gpio_irq_handler);
 
-    // I2C Initialisation. Using it at 400Khz.
+    // Inicialização da comunicação I2C. Utilizando a frequência de 400Khz.
     i2c_init(I2C_PORT, 400*1000);
-    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C);
+    gpio_set_function(I2C_SDA, GPIO_FUNC_I2C);  // Configura o pino para I2C
+    gpio_set_function(I2C_SCL, GPIO_FUNC_I2C); // Configura o pino para I2C
     gpio_pull_up(I2C_SDA);
     gpio_pull_up(I2C_SCL);
-
-    desenho (0);
+    ssd1306_init(&ssd, WIDTH, HEIGHT, false, address, I2C_PORT); // Inicializa o display
+    ssd1306_config(&ssd); // Configura o display
+    ssd1306_send_data(&ssd); // Envia os dados para o display
+    // Limpa o display. O display inicia com todos os pixels apagados.
+    ssd1306_fill(&ssd, false);
+    ssd1306_send_data(&ssd);
 
     printf("RP2040 inicializado.\n"); // Imprimir mensagem inicial ao usuário;
+
+    // Inicializa as mensagens no display SSD1306
+    ssd1306_draw_string(&ssd, gpio_get(green_pin)?"LED Verde Ligado!   ":"LED Verde Desligado!", 4, 7);
+    ssd1306_draw_string(&ssd, gpio_get(blue_pin)?"LED Azul Ligado!   ":"LED Azul Desligado!", 4, 21);
+    ssd1306_draw_string(&ssd, "O caractere digitado", 4, 35);
+    ssd1306_draw_string(&ssd, "foi... ", 4, 49);
+    ssd1306_send_data(&ssd);
+    //desenho(0);
 
     while (true) {
         if (stdio_usb_connected()) { // Certifica-se de que o USB está conectado
             char c;
             if (scanf("%c", &c)== 1) {
-            // Lê caractere apenas quando é detectada uma entrada
             printf("Recebido: '%c'\n", c);
+                if (c >= '0' && c <= '9') {
+                    desenho(c-'0');
+                }
+                ssd1306_draw_char(&ssd, c, 110, 50);
+                ssd1306_draw_char(&ssd, '!', 116, 50);
+                ssd1306_send_data(&ssd);
             }
             // Exibição do caractere no display SSD1306 ou na matriz de LED quando for um número
         }
