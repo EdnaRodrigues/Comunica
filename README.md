@@ -77,10 +77,10 @@ Após clonar o repositório:
 #### **1. Configurar o Simulador Wokwi**
 1. Abra o arquivo `diagram.json` incluído no repositório.
 2. Certifique-se de que o arquivo JSON está configurado corretamente para a simulação do hardware necessário:
-   - Display SSD1306 conectado via I2C.
-   - Matriz de LEDs WS2812 corretamente configurada.
-   - Botões físicos conectados aos GPIOs corretos.
-   - LED RGB devidamente conectado aos GPIOs corretos.
+   - Display SSD1306 conectado via I2C aos GPIOs 14 e 15.
+   - Matriz de LEDs WS2812 corretamente configurada e conectada ao pino GPIO 7.
+   - Botões físicos conectados aos GPIOs 5 e 6.
+   - LED RGB devidamente conectado aos GPIOs 11, 12 e 13.
 
 #### **2. Executar a Simulação**
 1. Abra o painel do simulador Wokwi no VS Code.
